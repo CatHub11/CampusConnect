@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import FeaturedEvents from "@/components/featured-events";
 import WaitlistForm from "@/components/waitlist-form";
 import ChatAssistant from "@/components/chat-assistant";
+import MyEvents from "@/components/my-events";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { 
@@ -137,6 +138,13 @@ const Home = () => {
               <div className="mt-4">
                 <div className="max-w-2xl mx-auto">
                   <ChatAssistant showByDefault={false} />
+                </div>
+              </div>
+              
+              {/* My Events Section */}
+              <div className="mt-6">
+                <div className="max-w-2xl mx-auto">
+                  <MyEvents limit={3} />
                 </div>
               </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
