@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .ease-spring {
+    transition-timing-function: cubic-bezier(0.28, 0.84, 0.42, 1);
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

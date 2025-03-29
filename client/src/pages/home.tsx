@@ -133,9 +133,11 @@ const Home = () => {
                 </p>
               </div>
               
-              {/* AI Chat Assistant */}
+              {/* AI Chat Assistant - Search Bar Style */}
               <div className="mt-4">
-                <ChatAssistant showByDefault={true} />
+                <div className="max-w-2xl mx-auto">
+                  <ChatAssistant showByDefault={false} />
+                </div>
               </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
                 <Link href="#waitlist">
@@ -228,7 +230,7 @@ const Home = () => {
 
       {/* FeaturedEvents Section */}
       <FeaturedEvents 
-        events={featuredEvents || []} 
+        events={Array.isArray(featuredEvents) ? featuredEvents : []} 
         isLoading={isLoadingEvents} 
       />
 
