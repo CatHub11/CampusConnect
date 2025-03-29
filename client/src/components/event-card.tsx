@@ -4,22 +4,21 @@ import { Calendar, Clock, MapPin } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Event } from "@shared/schema";
+import CategoryTag from "@/components/category-tag";
+import { Event, Category } from "@shared/schema";
 
 interface EventCardProps {
   event: Event;
-  categories?: any[];
+  categories?: Category[];
 }
 
 const EventCard = ({ event, categories }: EventCardProps) => {
   // Format event date and time
-  const formatEventDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatEventDate = (date: Date) => {
     return format(date, "MMM d, yyyy");
   };
   
-  const formatEventTime = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatEventTime = (date: Date) => {
     return format(date, "h:mm a");
   };
 
@@ -61,17 +60,11 @@ const EventCard = ({ event, categories }: EventCardProps) => {
         {categories && categories.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
             {categories.map((category) => (
-              <Badge 
+              <CategoryTag 
                 key={category.id} 
-                variant="outline" 
+                category={category}
                 className="text-xs"
-                style={{ 
-                  backgroundColor: `${category.color}20`, 
-                  color: category.color 
-                }}
-              >
-                {category.name}
-              </Badge>
+              />
             ))}
           </div>
         )}

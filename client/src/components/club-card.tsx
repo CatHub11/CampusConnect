@@ -1,20 +1,20 @@
 import { Link } from "wouter";
 import { Users, MapPin, Calendar } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Club } from "@shared/schema";
+import CategoryTag from "@/components/category-tag";
+import { Club, Category } from "@shared/schema";
 
 interface ClubCardProps {
   club: Club;
-  categories?: any[];
+  categories?: Category[];
 }
 
 const ClubCard = ({ club, categories }: ClubCardProps) => {
   // Format founded date if available
-  const formatFoundedDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatFoundedDate = (date?: Date | null) => {
+    if (!date) return "N/A";
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long'
     });
@@ -55,17 +55,11 @@ const ClubCard = ({ club, categories }: ClubCardProps) => {
         {categories && categories.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
             {categories.map((category) => (
-              <Badge 
-                key={category.id} 
-                variant="outline" 
+              <CategoryTag 
+                key={category.id}
+                category={category}
                 className="text-xs"
-                style={{ 
-                  backgroundColor: `${category.color}20`, 
-                  color: category.color 
-                }}
-              >
-                {category.name}
-              </Badge>
+              />
             ))}
           </div>
         )}
