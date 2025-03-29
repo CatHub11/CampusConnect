@@ -111,29 +111,35 @@ export async function fetchLocalEvents(city: string = 'State College', stateCode
       params: {
         city: city,
         stateCode: stateCode,
-        size: 20,
+        size: 10,
         apikey: 'pLOeuGq2JL05uEGrZG7DuGWu6sh2OnMz', // Public API key for demo purposes
       },
     });
     
-    // Process the response
-    const tmEvents = response.data._embedded?.events || [];
+    console.log('Ticketmaster API response status:', response.status);
     
-    // Convert Ticketmaster events to our app's event model
-    const localEvents = await Promise.all(tmEvents.map(async (tmEvent) => {
+    // If there are no events or API response doesn't match expected format, return empty array
+    if (!response.data || !response.data._embedded || !response.data._embedded.events) {
+      console.log('No Ticketmaster events found or invalid format');
+      return [];
+    }
+    
+    const tmEvents = response.data._embedded.events;
+    console.log(`Found ${tmEvents.length} Ticketmaster events`);
+    
+    // Instead of saving to database, just return the events directly for this demo
+    // This simplifies the implementation and avoids database issues
+    const localEvents: Event[] = tmEvents.map(tmEvent => {
+      // Convert Ticketmaster event to our app's event model format
       const appEvent = convertToAppEvent(tmEvent);
       
-      // Check if this event is already in our storage (by externalId)
-      const existingEvents = await storage.getAllEvents();
-      const existingEvent = existingEvents.find(e => e.externalId === appEvent.externalId);
-      
-      if (existingEvent) {
-        return existingEvent;
-      }
-      
-      // If not, save it to our storage
-      return storage.createEvent(appEvent);
-    }));
+      // Add required fields for Event type
+      return {
+        ...appEvent,
+        id: Math.floor(2000000 + Math.random() * 9000000), // Generate a random ID with different range
+        createdAt: new Date(),
+      } as Event;
+    });
     
     return localEvents;
   } catch (error) {

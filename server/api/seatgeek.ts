@@ -69,32 +69,39 @@ export async function fetchLocalEvents(city: string = 'State College', state: st
     const url = 'https://api.seatgeek.com/2/events';
     
     // Make the API call - SeatGeek allows access without a client ID for development/low usage
+    // Note: For better results, you should use a client_id, but for demo purposes we'll use without
     const response = await axios.get<SeatGeekEventsResponse>(url, {
       params: {
         'venue.city': city,
         'venue.state': state,
-        per_page: 25,
+        per_page: 10,
       },
     });
     
-    // Process the response
-    const seatGeekEvents = response.data.events;
+    console.log('SeatGeek API response status:', response.status);
     
-    // Convert SeatGeek events to our app's event model
-    const localEvents = await Promise.all(seatGeekEvents.map(async (seatGeekEvent) => {
+    // If there are no events or API response doesn't match expected format, return empty array
+    if (!response.data || !response.data.events || !Array.isArray(response.data.events)) {
+      console.log('No SeatGeek events found or invalid format');
+      return [];
+    }
+    
+    const seatGeekEvents = response.data.events;
+    console.log(`Found ${seatGeekEvents.length} SeatGeek events`);
+    
+    // Instead of saving to database, just return the events directly for this demo
+    // This simplifies the implementation and avoids database issues
+    const localEvents: Event[] = seatGeekEvents.map(seatGeekEvent => {
+      // Convert SeatGeek event to our app's event model format
       const appEvent = convertToAppEvent(seatGeekEvent);
       
-      // Check if this event is already in our storage (by externalId)
-      const existingEvents = await storage.getAllEvents();
-      const existingEvent = existingEvents.find(e => e.externalId === appEvent.externalId);
-      
-      if (existingEvent) {
-        return existingEvent;
-      }
-      
-      // If not, save it to our storage
-      return storage.createEvent(appEvent);
-    }));
+      // Add required fields for Event type
+      return {
+        ...appEvent,
+        id: Math.floor(1000000 + Math.random() * 9000000), // Generate a random ID
+        createdAt: new Date(),
+      } as Event;
+    });
     
     return localEvents;
   } catch (error) {

@@ -23,30 +23,36 @@ const LocalEvents = ({ limit = 5 }: LocalEventsProps) => {
 
   // Query for local events
   const { 
-    data: localEvents, 
+    data: localEvents = [], 
     isLoading, 
     isError, 
     refetch 
   } = useQuery<Event[]>({ 
-    queryKey: ['/api/events/local', city, state],
+    queryKey: ['/api/events/local-events', city, state],
     queryFn: async () => {
       try {
-        const response = await fetch(`/api/events/local?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`);
+        console.log(`Fetching events for ${city}, ${state}`);
+        const response = await fetch(`/api/events/local-events?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`);
         if (!response.ok) {
-          throw new Error('Failed to fetch local events');
+          const errorData = await response.json();
+          console.error('Error response:', errorData);
+          throw new Error(`Failed to fetch local events: ${errorData.message || response.statusText}`);
         }
-        return response.json();
+        const data = await response.json();
+        console.log('Local events data:', data);
+        return data;
       } catch (error) {
         console.error('Error fetching local events:', error);
         toast({
           title: "Error",
-          description: "Failed to load local events. Please try again later.",
+          description: "Failed to load local events. The external APIs may be temporarily unavailable.",
           variant: "destructive"
         });
         return [];
       }
     },
     staleTime: 1000 * 60 * 15, // 15 minutes
+    retry: 1,
   });
 
   // Query for categories to map them to events
