@@ -4,6 +4,12 @@ import { storage } from "./storage";
 import { generateChatResponse, suggestEventCategories } from "./openai";
 import { fetchAllLocalEvents, suggestCategoryForEvent } from "./api/localEvents";
 import { 
+  generateCalendarFile, 
+  sendCalendarFile, 
+  generateSingleEventCalendarFile,
+  generateCalendarFilename 
+} from "./api/calendar";
+import { 
   insertUserSchema, 
   insertWaitlistSchema, 
   insertCategorySchema,
@@ -630,6 +636,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error checking calendar status:", error);
       return res.status(500).json({ error: "Failed to check calendar status" });
+    }
+  });
+  
+  // Calendar export endpoints
+  
+  // Export a single event as .ics file
+  app.get("/api/events/:id/export/ics", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid event ID." });
+      }
+      
+      const event = await storage.getEvent(id);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found." });
+      }
+      
+      // Generate .ics file for this event
+      const icsContent = await generateSingleEventCalendarFile(event);
+      
+      // Generate filename with event ID
+      const filename = generateCalendarFilename('campusconnect', id);
+      
+      // Send the file as download
+      sendCalendarFile(res, icsContent, filename);
+    } catch (error) {
+      console.error("Error exporting event to calendar:", error);
+      res.status(500).json({ message: "Error exporting event to calendar." });
+    }
+  });
+  
+  // Export all user calendar events as .ics file
+  app.get("/api/users/:userId/calendar/export/ics", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      // Get all user's calendar events
+      const calendarEvents = await storage.getUserCalendarEvents(userId);
+      
+      // Generate .ics file for all events
+      const icsContent = await generateCalendarFile(calendarEvents);
+      
+      if (!icsContent) {
+        return res.status(404).json({ message: "No calendar events found." });
+      }
+      
+      // Generate filename for all calendar events
+      const filename = generateCalendarFilename('campusconnect');
+      
+      // Send the file as download
+      sendCalendarFile(res, icsContent, filename);
+    } catch (error) {
+      console.error("Error exporting calendar:", error);
+      res.status(500).json({ message: "Error exporting calendar." });
     }
   });
 

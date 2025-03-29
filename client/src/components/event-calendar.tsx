@@ -8,7 +8,7 @@ import { Event } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarPlus, CalendarX } from 'lucide-react';
+import { CalendarPlus, CalendarX, Download } from 'lucide-react';
 
 interface EventCalendarProps {
   userId: number;
@@ -104,8 +104,17 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({ userId }) => {
   
   return (
     <Card className="col-span-3 h-full">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>My Calendar</CardTitle>
+        <a 
+          href={`/api/users/${userId}/calendar/export/ics`} 
+          download="my-calendar.ics"
+          className="ml-auto"
+        >
+          <Button variant="outline" size="sm">
+            <CalendarPlus className="mr-2 h-4 w-4" /> Export Calendar
+          </Button>
+        </a>
       </CardHeader>
       <CardContent>
         <FullCalendar
