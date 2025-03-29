@@ -100,27 +100,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const localEvents = await fetchAllLocalEvents(city, state);
       console.log(`Found ${localEvents.length} local events`);
       
-      // We'll return the events directly without trying to save to the database
-      // This simplifies implementation for the demo and avoids database conflicts
+      // Get all existing categories for reference
+      const allCategories = await storage.getAllCategories();
       
-      // Add virtual categories to the events for display purposes
+      // Process events to include category information
       const enhancedEvents = localEvents.map(event => {
-        let categoryName = "Other";
+        // For each event, suggest a category based on name/description
+        const suggestedCategoryName = suggestCategoryForEvent(event);
         
-        // Simple categorization based on name
-        if (event.name.toLowerCase().includes('concert') || 
-            event.name.toLowerCase().includes('music')) {
-          categoryName = 'Music';
-        } else if (event.name.toLowerCase().includes('game') || 
-                  event.name.toLowerCase().includes('sports')) {
-          categoryName = 'Sports';
-        } else if (event.name.toLowerCase().includes('lecture') || 
-                  event.name.toLowerCase().includes('class')) {
-          categoryName = 'Academic';
+        // Find if this category already exists
+        let matchingCategory = allCategories.find(c => 
+          c.name.toLowerCase() === suggestedCategoryName.toLowerCase()
+        );
+        
+        // If not found, we'll create a virtual one just for display
+        if (!matchingCategory) {
+          // Generate a consistent color based on category name
+          // Default color is gray
+          let color = '#607D8B';
+          
+          // Map specific category names to colors
+          if (suggestedCategoryName === 'Music') {
+            color = '#2196F3'; // Blue
+          } else if (suggestedCategoryName === 'Sports') {
+            color = '#4CAF50'; // Green
+          } else if (suggestedCategoryName === 'Academic') {
+            color = '#FF9800'; // Orange
+          } else if (suggestedCategoryName === 'Social') {
+            color = '#9C27B0'; // Purple
+          } else if (suggestedCategoryName === 'Community Service') {
+            color = '#795548'; // Brown
+          } else if (suggestedCategoryName === 'Arts & Culture') {
+            color = '#E91E63'; // Pink
+          } else if (suggestedCategoryName === 'Other') {
+            color = '#607D8B'; // Gray
+          }
+          
+          matchingCategory = {
+            id: 1000 + allCategories.length + 1, // Virtual ID starting from 1000
+            name: suggestedCategoryName,
+            color: color,
+            isDefault: false,
+            createdBy: null
+          };
         }
         
-        // We don't modify the event, we'll use this info in the frontend
-        return event;
+        // We don't modify the event itself, but we'll add a virtual
+        // property for the frontend to use for display purposes
+        const eventWithVirtualProp = {
+          ...event,
+          __suggestedCategory: matchingCategory
+        };
+        
+        return eventWithVirtualProp;
       });
       
       res.json(enhancedEvents);

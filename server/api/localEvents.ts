@@ -1,6 +1,7 @@
 import { Event } from '../../shared/schema';
 import { fetchLocalEvents as fetchSeatGeekEvents } from './seatgeek';
 import { fetchLocalEvents as fetchTicketmasterEvents } from './ticketmaster';
+import { getSampleEvents } from './sampleEvents';
 
 /**
  * Fetch events from all available sources and combine them
@@ -31,7 +32,16 @@ export async function fetchAllLocalEvents(
     ]);
     
     // Combine the events from different sources
-    const allEvents = [...seatGeekEvents, ...ticketmasterEvents];
+    let allEvents = [...seatGeekEvents, ...ticketmasterEvents];
+    
+    // If no events were found from external APIs, use sample data
+    if (allEvents.length === 0) {
+      console.log(`No events found from external APIs, using sample data for ${city}, ${state}`);
+      const sampleEvents = getSampleEvents(city, state);
+      allEvents = [...sampleEvents];
+      console.log(`Added ${sampleEvents.length} sample events`);
+    }
+    
     console.log(`Total combined events: ${allEvents.length}`);
     
     // Sort events by date
@@ -40,7 +50,9 @@ export async function fetchAllLocalEvents(
     );
   } catch (error) {
     console.error('Error fetching local events:', error);
-    return [];
+    // Return sample data as a fallback
+    const sampleEvents = getSampleEvents(city, state);
+    return sampleEvents;
   }
 }
 

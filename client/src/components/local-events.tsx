@@ -1,307 +1,199 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Event, Category } from '@shared/schema';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, Calendar, ExternalLink } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
-import CategoryTag from './category-tag';
+import { Event } from '@shared/schema';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { CalendarIcon, MapPinIcon, ExternalLinkIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import debounce from 'lodash/debounce';
+
+// Include our additional property for categories
+interface LocalEvent extends Event {
+  __suggestedCategory?: {
+    id: number;
+    name: string;
+    color: string;
+    isDefault: boolean;
+    createdBy: number | null;
+  };
+}
 
 interface LocalEventsProps {
   limit?: number;
 }
 
-const LocalEvents = ({ limit = 5 }: LocalEventsProps) => {
-  const { toast } = useToast();
-  const [city, setCity] = useState("State College");
-  const [state, setState] = useState("PA");
+const LocalEvents = ({ limit }: LocalEventsProps) => {
+  const [city, setCity] = useState('State College');
+  const [state, setStateCode] = useState('PA');
+  const [searchCity, setSearchCity] = useState('State College');
+  const [searchState, setSearchState] = useState('PA');
 
-  // Query for local events
-  const { 
-    data: localEvents = [], 
-    isLoading, 
-    isError, 
-    refetch 
-  } = useQuery<Event[]>({ 
-    queryKey: ['/api/events/local-events', city, state],
-    queryFn: async () => {
-      try {
-        console.log(`Fetching events for ${city}, ${state}`);
-        const response = await fetch(`/api/events/local-events?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Error response:', errorData);
-          throw new Error(`Failed to fetch local events: ${errorData.message || response.statusText}`);
-        }
-        const data = await response.json();
-        console.log('Local events data:', data);
-        return data;
-      } catch (error) {
-        console.error('Error fetching local events:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load local events. The external APIs may be temporarily unavailable.",
-          variant: "destructive"
-        });
-        return [];
-      }
-    },
-    staleTime: 1000 * 60 * 15, // 15 minutes
-    retry: 1,
-  });
+  // Using the same debounce pattern as before
+  const debouncedSearch = debounce((newCity: string, newState: string) => {
+    setSearchCity(newCity);
+    setSearchState(newState);
+  }, 500);
 
-  // Query for categories to map them to events
-  const { data: categories } = useQuery<Category[]>({
-    queryKey: ['/api/categories'],
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  // Don't need these here anymore as the EventCard has its own formatting functions
-
-  // Handle search button click
-  const handleSearch = () => {
-    refetch();
+  const handleCityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCity(e.target.value);
+    debouncedSearch(e.target.value, state);
   };
 
-  // Get categories for an event
-  const getEventCategories = (eventId: number) => {
-    if (!categories) return [];
-    
-    const event = localEvents?.find(e => e.id === eventId);
-    if (!event) return [];
-    
-    // This is a simplification as we don't have direct access to event categories
-    // In a real implementation, you'd query event categories or include them in the response
-    return categories.filter(c => 
-      c.name === 'Music' && event.name.toLowerCase().includes('concert') ||
-      c.name === 'Sports' && event.name.toLowerCase().includes('game') ||
-      c.name === 'Academic' && event.name.toLowerCase().includes('lecture')
-    );
+  const handleStateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setStateCode(e.target.value);
+    debouncedSearch(city, e.target.value);
+  };
+
+  // Log the search parameters for debugging
+  useEffect(() => {
+    console.log(`Fetching events for ${searchCity}, ${searchState}`);
+  }, [searchCity, searchState]);
+
+  const {
+    data: events,
+    isLoading,
+    error
+  } = useQuery<LocalEvent[]>({
+    queryKey: ['/api/events/local-events', searchCity, searchState],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchCity) params.append('city', searchCity);
+      if (searchState) params.append('state', searchState);
+      
+      const response = await fetch(`/api/events/local-events?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch local events');
+      }
+      const data = await response.json();
+      console.log('Local events data:', data);
+      return data;
+    },
+    refetchOnWindowFocus: false,
+  });
+
+  const formatDate = (dateString: string | Date) => {
+    const date = new Date(dateString);
+    return format(date, 'PPP');
+  };
+
+  const formatTime = (dateString: string | Date) => {
+    const date = new Date(dateString);
+    return format(date, 'p');
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4">
-        <h2 className="text-2xl font-bold">Local Events</h2>
-        
-        <div className="flex flex-col sm:flex-row gap-2">
+      <div className="flex flex-col md:flex-row justify-between mb-4">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Local Area Events</h2>
+          <p className="text-gray-500">Discover what's happening in the area</p>
+        </div>
+        <div className="flex gap-4 items-center mt-4 md:mt-0">
           <div className="flex-1">
             <Input
               placeholder="City"
               value={city}
-              onChange={(e) => setCity(e.target.value)}
+              onChange={handleCityChange}
+              className="w-full"
             />
           </div>
           <div className="w-24">
             <Input
               placeholder="State"
               value={state}
-              onChange={(e) => setState(e.target.value)}
+              onChange={handleStateChange}
               maxLength={2}
+              className="w-full"
             />
           </div>
-          <Button onClick={handleSearch}>Search</Button>
         </div>
       </div>
-      
-      <Tabs defaultValue="upcoming" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="all">All Events</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="upcoming" className="space-y-4 mt-4">
-          {isLoading ? (
-            // Loading state
-            Array.from({ length: 3 }).map((_, index) => (
-              <Card key={index} className="overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="p-4">
-                    <Skeleton className="h-6 w-2/3 mb-2" />
-                    <Skeleton className="h-4 w-1/2 mb-1" />
-                    <Skeleton className="h-4 w-1/3" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : isError ? (
-            // Error state
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Failed to load events. Please try again.</p>
-              <Button onClick={() => refetch()} className="mt-2">Retry</Button>
-            </div>
-          ) : localEvents && localEvents.length > 0 ? (
-            // Successfully loaded events
-            localEvents
-              .filter(event => new Date(event.startTime) > new Date())
-              .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-              .slice(0, limit)
-              .map((event) => (
-                <EventCard 
-                  key={event.id} 
-                  event={event} 
-                  categories={categories}
-                />
-              ))
-          ) : (
-            // No events found
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No upcoming events found for this location.</p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="all" className="space-y-4 mt-4">
-          {isLoading ? (
-            // Loading state
-            Array.from({ length: 3 }).map((_, index) => (
-              <Card key={index} className="overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="p-4">
-                    <Skeleton className="h-6 w-2/3 mb-2" />
-                    <Skeleton className="h-4 w-1/2 mb-1" />
-                    <Skeleton className="h-4 w-1/3" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : isError ? (
-            // Error state
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Failed to load events. Please try again.</p>
-              <Button onClick={() => refetch()} className="mt-2">Retry</Button>
-            </div>
-          ) : localEvents && localEvents.length > 0 ? (
-            // Successfully loaded events
-            localEvents
-              .slice(0, limit)
-              .map((event) => (
-                <EventCard 
-                  key={event.id} 
-                  event={event} 
-                  categories={categories}
-                />
-              ))
-          ) : (
-            // No events found
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No events found for this location.</p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
 
-// Event Card component for local events
-interface EventCardProps {
-  event: Event;
-  categories?: Category[];
-}
-
-const EventCard = ({ event, categories }: EventCardProps) => {
-  // Format event date
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short', 
-      day: 'numeric'
-    });
-  };
-
-  // Format event time
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
-
-  return (
-    <Card className="overflow-hidden hover:shadow-md transition-all">
-      <CardContent className="p-4">
-        <div className="flex flex-col">
-          <div className="flex items-start justify-between mb-2">
-            <h3 className="font-semibold text-lg line-clamp-1">{event.name}</h3>
-            
-            {event.externalUrl && (
-              <a 
-                href={event.externalUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:text-primary/80 transition-colors"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            )}
-          </div>
-          
-          {event.source && (
-            <Badge variant="outline" className="text-xs self-start mb-2">
-              {event.source === 'seatgeek' ? 'SeatGeek' : 
-               event.source === 'ticketmaster' ? 'Ticketmaster' : 
-               event.source}
-            </Badge>
-          )}
-          
-          <div className="space-y-2 mb-3">
-            <div className="flex items-start">
-              <Calendar className="h-4 w-4 mr-2 text-gray-500 mt-1" />
-              <span className="text-sm">
-                {formatDate(event.startTime)} · {formatTime(event.startTime)}
-              </span>
-            </div>
-            
-            <div className="flex items-start">
-              <MapPin className="h-4 w-4 mr-2 text-gray-500 mt-1" />
-              <span className="text-sm line-clamp-1">{event.location}</span>
-            </div>
-          </div>
-          
-          <p className="text-gray-600 text-sm line-clamp-2 mb-3">
-            {event.description}
-          </p>
-          
-          {categories && categories.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {categories
-                .filter(category => { 
-                  // This is just a simple implementation for demonstration
-                  // In a real app, you'd map events to their actual categories
-                  const eventCategories = [{name: 'Local Event', color: '#9C27B0'}];
-                  
-                  if (event.name.toLowerCase().includes('concert') || 
-                      event.name.toLowerCase().includes('music')) {
-                    eventCategories.push({name: 'Music', color: '#2196F3'});
-                  } else if (event.name.toLowerCase().includes('game') || 
-                             event.name.toLowerCase().includes('sports')) {
-                    eventCategories.push({name: 'Sports', color: '#4CAF50'});
-                  } else if (event.name.toLowerCase().includes('lecture') || 
-                             event.name.toLowerCase().includes('class')) {
-                    eventCategories.push({name: 'Academic', color: '#FF9800'});
-                  }
-                  
-                  return eventCategories.some(ec => ec.name === category.name);
-                })
-                .map((category) => (
-                  <CategoryTag
-                    key={category.id}
-                    category={category}
-                    className="text-xs"
-                  />
-                ))}
-            </div>
-          )}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="overflow-hidden">
+              <CardHeader className="p-4">
+                <Skeleton className="h-4 w-2/3 mb-2" />
+                <Skeleton className="h-6 w-4/5" />
+              </CardHeader>
+              <CardContent className="p-4">
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-5/6 mb-2" />
+                <Skeleton className="h-4 w-3/4" />
+              </CardContent>
+              <CardFooter className="p-4 flex justify-between">
+                <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-4 w-24" />
+              </CardFooter>
+            </Card>
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      ) : error ? (
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold">Error</h3>
+          <p>Failed to load local events. Please try again later.</p>
+        </div>
+      ) : !events || events.length === 0 ? (
+        <div className="bg-gray-50 dark:bg-gray-800 p-8 text-center rounded-lg">
+          <h3 className="text-xl font-medium mb-2">No events found</h3>
+          <p className="text-gray-500 dark:text-gray-400">
+            Try searching for a different city or state.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {(limit ? events.slice(0, limit) : events).map((event) => (
+            <Card key={event.id} className="overflow-hidden h-full flex flex-col">
+              <CardHeader className="pb-2">
+                {event.__suggestedCategory && (
+                  <Badge 
+                    style={{ backgroundColor: event.__suggestedCategory.color, color: '#fff' }}
+                    className="self-start mb-2"
+                  >
+                    {event.__suggestedCategory.name}
+                  </Badge>
+                )}
+                <CardTitle className="text-lg">{event.name}</CardTitle>
+                <CardDescription className="flex items-center gap-1 mt-1">
+                  <MapPinIcon className="w-4 h-4" />
+                  <span>{event.location}</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pb-2 flex-grow">
+                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3">
+                  {event.description || 'No description available'}
+                </p>
+                <div className="flex items-center gap-1 mt-3 text-sm text-gray-500">
+                  <CalendarIcon className="w-4 h-4" />
+                  <span>{formatDate(event.startTime)} at {formatTime(event.startTime)}</span>
+                </div>
+              </CardContent>
+              <CardFooter className="pt-2 flex justify-between">
+                {event.externalUrl ? (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={event.externalUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
+                      <span>View Details</span>
+                      <ExternalLinkIcon className="w-3 h-3" />
+                    </a>
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={`/events/${event.id}`}>View Details</a>
+                  </Button>
+                )}
+                <Badge variant="outline" className="ml-2">
+                  {event.source || 'Local'}
+                </Badge>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

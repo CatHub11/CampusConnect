@@ -211,7 +211,7 @@ const Events = () => {
       
       <div className="mt-12">
         <Separator className="mb-8" />
-        <LocalEvents limit={5} />
+        <LocalEvents />
       </div>
     </div>
   );
