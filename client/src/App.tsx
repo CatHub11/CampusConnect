@@ -8,6 +8,7 @@ import Events from "@/pages/events";
 import Clubs from "@/pages/clubs";
 import EventDetails from "@/pages/event-details";
 import ClubDetails from "@/pages/club-details";
+import Dashboard from "@/pages/dashboard";
 import Header from "./components/header";
 import Footer from "./components/footer";
 
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/events/:id" component={EventDetails} />
       <Route path="/clubs" component={Clubs} />
       <Route path="/clubs/:id" component={ClubDetails} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route component={NotFound} />
     </Switch>
   );
