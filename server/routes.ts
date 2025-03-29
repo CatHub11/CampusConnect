@@ -684,10 +684,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate .ics file for all events
       const icsContent = await generateCalendarFile(calendarEvents);
       
-      if (!icsContent) {
-        return res.status(404).json({ message: "No calendar events found." });
-      }
-      
       // Generate filename for all calendar events
       const filename = generateCalendarFilename('campusconnect');
       

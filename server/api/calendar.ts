@@ -22,7 +22,16 @@ function formatDateForICS(date: Date): DateArray {
 export function generateCalendarFile(events: Event[]): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!events.length) {
-      return resolve('');
+      // Return a basic empty calendar instead of empty string
+      const emptyCalendar = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//CampusConnect//Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:CampusConnect Calendar
+X-WR-TIMEZONE:UTC
+END:VCALENDAR`;
+      return resolve(emptyCalendar);
     }
 
     const eventAttributes: EventAttributes[] = events.map(event => {
