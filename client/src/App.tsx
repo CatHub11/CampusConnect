@@ -11,6 +11,7 @@ import ClubDetails from "@/pages/club-details";
 import Dashboard from "@/pages/dashboard";
 import Header from "./components/header";
 import Footer from "./components/footer";
+import { ThemeProvider } from "./components/theme-provider";
 
 function Router() {
   return (
@@ -28,16 +29,18 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-grow">
-          <Router />
-        </main>
-        <Footer />
-      </div>
-      <Toaster />
-    </QueryClientProvider>
+    <ThemeProvider defaultTheme="light">
+      <QueryClientProvider client={queryClient}>
+        <div className="flex flex-col min-h-screen">
+          <Header />
+          <main className="flex-grow">
+            <Router />
+          </main>
+          <Footer />
+        </div>
+        <Toaster />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

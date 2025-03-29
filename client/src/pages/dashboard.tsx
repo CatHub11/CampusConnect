@@ -127,12 +127,12 @@ const Dashboard = () => {
       {/* Sidebar */}
       <div 
         className={cn(
-          "bg-gray-100 border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out",
+          "bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-in-out",
           sidebarCollapsed ? "w-16" : "w-64"
         )}
       >
         {/* Top section - Header */}
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           {!sidebarCollapsed && <h2 className="font-semibold text-lg">Dashboard</h2>}
           <Button variant="ghost" size="icon" onClick={toggleSidebar} className="ml-auto">
             <PanelLeft className="h-5 w-5" />
@@ -142,7 +142,7 @@ const Dashboard = () => {
         {/* Middle section - Categories */}
         <div className="flex-1 overflow-y-auto py-2">
           <div className={cn("px-3 mb-2", !sidebarCollapsed && "flex items-center justify-between")}>
-            {!sidebarCollapsed && <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Categories</h3>}
+            {!sidebarCollapsed && <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Categories</h3>}
             {!sidebarCollapsed && (
               <Button variant="ghost" size="icon" className="h-5 w-5">
                 <Plus className="h-4 w-4" />
@@ -154,8 +154,10 @@ const Dashboard = () => {
             <button
               onClick={() => setSelectedCategory(null)}
               className={cn(
-                "flex items-center w-full px-3 py-2 text-sm font-medium",
-                !selectedCategory ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-200",
+                "flex items-center w-full px-3 py-2 text-sm font-medium transition-colors",
+                !selectedCategory 
+                  ? "bg-primary text-primary-foreground" 
+                  : "text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700",
                 sidebarCollapsed && "justify-center"
               )}
             >
@@ -168,8 +170,10 @@ const Dashboard = () => {
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
                 className={cn(
-                  "flex items-center w-full px-3 py-2 text-sm font-medium",
-                  selectedCategory === category.id ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-200",
+                  "flex items-center w-full px-3 py-2 text-sm font-medium transition-colors",
+                  selectedCategory === category.id 
+                    ? "bg-primary text-primary-foreground" 
+                    : "text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700",
                   sidebarCollapsed && "justify-center"
                 )}
               >
@@ -184,10 +188,10 @@ const Dashboard = () => {
         </div>
 
         {/* Bottom section - Settings */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <button
             className={cn(
-              "flex items-center w-full px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-md",
+              "flex items-center w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors",
               sidebarCollapsed && "justify-center"
             )}
           >
@@ -254,19 +258,19 @@ const Dashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        <div className="flex items-center text-gray-500 text-sm">
+                        <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
                           <CalendarIcon className="h-4 w-4 mr-2" />
                           {format(new Date(event.startTime), "EEE, MMM d, yyyy")}
                         </div>
-                        <div className="flex items-center text-gray-500 text-sm">
+                        <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
                           <ClockIcon className="h-4 w-4 mr-2" />
                           {format(new Date(event.startTime), "h:mm a")} - {format(new Date(event.endTime), "h:mm a")}
                         </div>
-                        <div className="flex items-center text-gray-500 text-sm">
+                        <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
                           <MapPinIcon className="h-4 w-4 mr-2" />
                           {event.location}
                         </div>
-                        <p className="text-sm text-gray-600 line-clamp-2 mt-2">{event.description}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mt-2">{event.description}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -274,9 +278,9 @@ const Dashboard = () => {
               ))
             ) : (
               <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
-                <CalendarIcon className="h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No events found</h3>
-                <p className="text-gray-500 mb-4">
+                <CalendarIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No events found</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
                   {selectedCategory 
                     ? "No events found in this category. Try selecting a different category."
                     : "No events found. Create a new event or try a different filter."
@@ -316,11 +320,11 @@ const Dashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        <div className="flex items-center text-gray-500 text-sm">
+                        <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
                           <Users className="h-4 w-4 mr-2" />
                           {club.memberCount || 0} members
                         </div>
-                        <p className="text-sm text-gray-600 line-clamp-3 mt-2">{club.description}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3 mt-2">{club.description}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -328,9 +332,9 @@ const Dashboard = () => {
               ))
             ) : (
               <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
-                <Users className="h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No clubs found</h3>
-                <p className="text-gray-500 mb-4">
+                <Users className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No clubs found</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
                   {selectedCategory 
                     ? "No clubs found in this category. Try selecting a different category."
                     : "No clubs found. Create a new club or try a different filter."
