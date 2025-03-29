@@ -90,16 +90,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Events API
-  app.get("/api/events", async (_req: Request, res: Response) => {
+  // Local Events API - Placed BEFORE the :id param route to avoid conflict
+  app.get("/api/events/local-events", async (req: Request, res: Response) => {
     try {
-      const events = await storage.getAllEvents();
-      res.json(events);
+      const city = req.query.city as string || 'State College';
+      const state = req.query.state as string || 'PA';
+      
+      console.log(`Fetching local events for ${city}, ${state}`);
+      const localEvents = await fetchAllLocalEvents(city, state);
+      console.log(`Found ${localEvents.length} local events`);
+      
+      // We'll return the events directly without trying to save to the database
+      // This simplifies implementation for the demo and avoids database conflicts
+      
+      // Add virtual categories to the events for display purposes
+      const enhancedEvents = localEvents.map(event => {
+        let categoryName = "Other";
+        
+        // Simple categorization based on name
+        if (event.name.toLowerCase().includes('concert') || 
+            event.name.toLowerCase().includes('music')) {
+          categoryName = 'Music';
+        } else if (event.name.toLowerCase().includes('game') || 
+                  event.name.toLowerCase().includes('sports')) {
+          categoryName = 'Sports';
+        } else if (event.name.toLowerCase().includes('lecture') || 
+                  event.name.toLowerCase().includes('class')) {
+          categoryName = 'Academic';
+        }
+        
+        // We don't modify the event, we'll use this info in the frontend
+        return event;
+      });
+      
+      res.json(enhancedEvents);
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Error fetching events." });
+      console.error("Error fetching local events:", error);
+      res.status(500).json({ message: "Error fetching local events." });
     }
   });
-  
+
+  // Order is important: specific routes before parameterized routes
   app.get("/api/events/featured", async (_req: Request, res: Response) => {
     try {
       const limit = Number(_req.query.limit) || 5;
@@ -108,6 +139,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Error fetching featured events." });
+    }
+  });
+  
+  app.get("/api/events", async (_req: Request, res: Response) => {
+    try {
+      const events = await storage.getAllEvents();
+      res.json(events);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Error fetching events." });
     }
   });
   
@@ -475,46 +516,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Error suggesting categories." });
-    }
-  });
-  
-  // Local Events API - Use a more specific route path 
-  app.get("/api/events/local-events", async (req: Request, res: Response) => {
-    try {
-      const city = req.query.city as string || 'State College';
-      const state = req.query.state as string || 'PA';
-      
-      console.log(`Fetching local events for ${city}, ${state}`);
-      const localEvents = await fetchAllLocalEvents(city, state);
-      console.log(`Found ${localEvents.length} local events`);
-      
-      // We'll return the events directly without trying to save to the database
-      // This simplifies implementation for the demo and avoids database conflicts
-      
-      // Add virtual categories to the events for display purposes
-      const enhancedEvents = localEvents.map(event => {
-        let categoryName = "Other";
-        
-        // Simple categorization based on name
-        if (event.name.toLowerCase().includes('concert') || 
-            event.name.toLowerCase().includes('music')) {
-          categoryName = 'Music';
-        } else if (event.name.toLowerCase().includes('game') || 
-                  event.name.toLowerCase().includes('sports')) {
-          categoryName = 'Sports';
-        } else if (event.name.toLowerCase().includes('lecture') || 
-                  event.name.toLowerCase().includes('class')) {
-          categoryName = 'Academic';
-        }
-        
-        // We don't modify the event, we'll use this info in the frontend
-        return event;
-      });
-      
-      res.json(enhancedEvents);
-    } catch (error) {
-      console.error("Error fetching local events:", error);
-      res.status(500).json({ message: "Error fetching local events." });
     }
   });
 
