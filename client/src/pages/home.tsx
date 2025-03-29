@@ -132,6 +132,11 @@ const Home = () => {
                   Discover events, join clubs, and connect with your campus community - all in one place.
                 </p>
               </div>
+              
+              {/* AI Chat Assistant */}
+              <div className="mt-4">
+                <ChatAssistant showByDefault={true} />
+              </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
                 <Link href="#waitlist">
                   <Button size="lg">Join the Waitlist</Button>
