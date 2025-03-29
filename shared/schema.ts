@@ -44,6 +44,10 @@ export const events = pgTable("events", {
   organizerId: integer("organizer_id").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   featured: boolean("featured").notNull().default(false),
+  // Fields for external events
+  externalId: text("external_id"),
+  externalUrl: text("external_url"),
+  source: text("source"),
 });
 
 export const insertEventSchema = createInsertSchema(events).omit({

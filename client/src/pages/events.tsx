@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Calendar, Grid, Loader2, Plus, X } from "lucide-react";
+import { Calendar, Grid, Loader2, Plus, X, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import EventCard from "@/components/event-card";
 import CategoryTag from "@/components/category-tag";
+import LocalEvents from "@/components/local-events";
 import { Event, Category } from "@shared/schema";
 import {
   Dialog,
@@ -205,6 +207,11 @@ const Events = () => {
             </TabsContent>
           </Tabs>
         </div>
+      </div>
+      
+      <div className="mt-12">
+        <Separator className="mb-8" />
+        <LocalEvents limit={5} />
       </div>
     </div>
   );

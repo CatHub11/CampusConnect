@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateChatResponse, suggestEventCategories } from "./openai";
+import { fetchAllLocalEvents, suggestCategoryForEvent } from "./api/localEvents";
 import { 
   insertUserSchema, 
   insertWaitlistSchema, 
@@ -474,6 +475,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Error suggesting categories." });
+    }
+  });
+  
+  // Local Events API
+  app.get("/api/events/local", async (req: Request, res: Response) => {
+    try {
+      const city = req.query.city as string || 'State College';
+      const state = req.query.state as string || 'PA';
+      
+      const localEvents = await fetchAllLocalEvents(city, state);
+      
+      // Automatically assign categories to events
+      for (const event of localEvents) {
+        if (event.source) { // Only for external events
+          // Find a suitable category for this event
+          const suggestedCategoryName = suggestCategoryForEvent(event);
+          
+          // Find or create category
+          let category = await storage.getCategoryByName(suggestedCategoryName);
+          
+          if (!category) {
+            // Create a new category with a random color
+            const colors = [
+              '#4CAF50', // Green
+              '#2196F3', // Blue
+              '#F44336', // Red
+              '#FF9800', // Orange
+              '#9C27B0', // Purple
+              '#795548'  // Brown
+            ];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            category = await storage.createCategory({
+              name: suggestedCategoryName,
+              color: randomColor,
+              isDefault: false,
+              createdBy: null
+            });
+          }
+          
+          // Add the category to the event
+          await storage.addEventCategory({
+            eventId: event.id,
+            categoryId: category.id
+          });
+        }
+      }
+      
+      res.json(localEvents);
+    } catch (error) {
+      console.error("Error fetching local events:", error);
+      res.status(500).json({ message: "Error fetching local events." });
     }
   });
 
