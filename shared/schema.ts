@@ -204,3 +204,26 @@ export type ClubWithCategories = Club & {
   categories: Category[];
   president: User;
 };
+
+// Event Reactions Schema
+export const eventReactions = pgTable("event_reactions", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => events.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  emoji: text("emoji").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertEventReactionSchema = createInsertSchema(eventReactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type EventReaction = typeof eventReactions.$inferSelect;
+export type InsertEventReaction = z.infer<typeof insertEventReactionSchema>;
+
+export type EventReactionCount = {
+  emoji: string;
+  count: number;
+  userReacted: boolean;
+};

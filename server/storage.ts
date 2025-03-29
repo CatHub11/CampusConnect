@@ -10,6 +10,7 @@ import {
   waitlist, type WaitlistEntry, type InsertWaitlistEntry,
   chatConversations, type ChatConversation, type InsertChatConversation,
   chatMessages, type ChatMessage, type InsertChatMessage,
+  eventReactions, type EventReaction, type InsertEventReaction, type EventReactionCount,
   type EventWithCategories, type ClubWithCategories
 } from "@shared/schema";
 
@@ -59,6 +60,12 @@ export interface IStorage {
   getChatConversation(id: number): Promise<ChatConversation | undefined>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   getChatMessagesByConversationId(conversationId: number): Promise<ChatMessage[]>;
+  
+  // Event Reactions methods
+  createEventReaction(reaction: InsertEventReaction): Promise<EventReaction>;
+  getEventReactionsByEventId(eventId: number): Promise<EventReaction[]>;
+  getEventReactionCounts(eventId: number, userId?: number): Promise<EventReactionCount[]>;
+  toggleEventReaction(eventId: number, userId: number, emoji: string): Promise<EventReaction | null>;
 }
 
 export class MemStorage implements IStorage {
@@ -73,6 +80,7 @@ export class MemStorage implements IStorage {
   private waitlistEntries: Map<number, WaitlistEntry>;
   private chatConversations: Map<number, ChatConversation>;
   private chatMessages: Map<number, ChatMessage>;
+  private eventReactions: EventReaction[];
   
   private userId: number;
   private categoryId: number;
@@ -81,6 +89,7 @@ export class MemStorage implements IStorage {
   private waitlistId: number;
   private conversationId: number;
   private messageId: number;
+  private reactionId: number;
 
   constructor() {
     this.users = new Map();
@@ -94,6 +103,7 @@ export class MemStorage implements IStorage {
     this.waitlistEntries = new Map();
     this.chatConversations = new Map();
     this.chatMessages = new Map();
+    this.eventReactions = [];
     
     this.userId = 1;
     this.categoryId = 1;
@@ -102,6 +112,7 @@ export class MemStorage implements IStorage {
     this.waitlistId = 1;
     this.conversationId = 1;
     this.messageId = 1;
+    this.reactionId = 1;
     
     // Initialize default categories
     const defaultCategories: InsertCategory[] = [
@@ -327,6 +338,60 @@ export class MemStorage implements IStorage {
     return Array.from(this.chatMessages.values())
       .filter(message => message.conversationId === conversationId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  // Event Reactions methods
+  async createEventReaction(reaction: InsertEventReaction): Promise<EventReaction> {
+    const id = this.reactionId++;
+    const now = new Date();
+    const eventReaction: EventReaction = { ...reaction, id, createdAt: now };
+    this.eventReactions.push(eventReaction);
+    return eventReaction;
+  }
+
+  async getEventReactionsByEventId(eventId: number): Promise<EventReaction[]> {
+    return this.eventReactions.filter(reaction => reaction.eventId === eventId);
+  }
+
+  async getEventReactionCounts(eventId: number, userId?: number): Promise<EventReactionCount[]> {
+    const eventReactions = this.getEventReactionsByEventId(eventId);
+    
+    // Group reactions by emoji and count them
+    const emojiCounts = new Map<string, number>();
+    const userReacted = new Map<string, boolean>();
+    
+    for (const reaction of await eventReactions) {
+      const count = emojiCounts.get(reaction.emoji) || 0;
+      emojiCounts.set(reaction.emoji, count + 1);
+      
+      // Check if the current user has reacted with this emoji
+      if (userId && reaction.userId === userId) {
+        userReacted.set(reaction.emoji, true);
+      }
+    }
+    
+    // Convert to the expected format
+    return Array.from(emojiCounts.entries()).map(([emoji, count]) => ({
+      emoji,
+      count,
+      userReacted: userId ? userReacted.get(emoji) || false : false,
+    }));
+  }
+
+  async toggleEventReaction(eventId: number, userId: number, emoji: string): Promise<EventReaction | null> {
+    // Check if the user has already reacted with this emoji
+    const existingReaction = this.eventReactions.find(
+      r => r.eventId === eventId && r.userId === userId && r.emoji === emoji
+    );
+    
+    if (existingReaction) {
+      // If reaction exists, remove it (toggle off)
+      this.eventReactions = this.eventReactions.filter(r => r !== existingReaction);
+      return null;
+    } else {
+      // If reaction doesn't exist, create it (toggle on)
+      return this.createEventReaction({ eventId, userId, emoji });
+    }
   }
 }
 

@@ -13,7 +13,8 @@ import {
   insertEventRsvpSchema,
   insertClubMemberSchema,
   insertChatConversationSchema,
-  insertChatMessageSchema
+  insertChatMessageSchema,
+  insertEventReactionSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -194,6 +195,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(result);
     } catch (error) {
       handleZodError(error, res);
+    }
+  });
+  
+  // Event Reactions endpoints
+  app.get("/api/events/:id/reactions", async (req: Request, res: Response) => {
+    try {
+      const eventId = Number(req.params.id);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID." });
+      }
+      
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found." });
+      }
+      
+      // For now, we assume a userId might be provided in query params
+      // In a real app, this would come from the authenticated user
+      const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
+      
+      const reactionCounts = await storage.getEventReactionCounts(eventId, userId);
+      res.json(reactionCounts);
+    } catch (error) {
+      console.error("Error getting event reactions:", error);
+      res.status(500).json({ error: "Failed to get event reactions" });
+    }
+  });
+  
+  app.post("/api/events/:id/reactions", async (req: Request, res: Response) => {
+    try {
+      const eventId = Number(req.params.id);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID." });
+      }
+      
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found." });
+      }
+      
+      // Validate request body
+      if (!req.body || typeof req.body.emoji !== 'string') {
+        return res.status(400).json({ error: "Emoji is required" });
+      }
+      
+      // For now, we assume a fixed userId for demonstration
+      // In a real app, this would come from the authenticated user
+      const userId = 1; // Mock user ID for demonstration
+      
+      await storage.toggleEventReaction(eventId, userId, req.body.emoji);
+      
+      // Return updated reaction counts
+      const reactionCounts = await storage.getEventReactionCounts(eventId, userId);
+      res.json(reactionCounts);
+    } catch (error) {
+      console.error("Error toggling event reaction:", error);
+      res.status(500).json({ error: "Failed to toggle event reaction" });
     }
   });
 
