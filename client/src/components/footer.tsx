@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Building, GitHub, Instagram, Linkedin, Twitter } from "lucide-react";
+import { Building, Github, Instagram, Linkedin, Twitter } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -25,7 +25,7 @@ const Footer = () => {
                 <Linkedin className="h-5 w-5" />
               </a>
               <a href="#" className="text-gray-400 hover:text-white">
-                <GitHub className="h-5 w-5" />
+                <Github className="h-5 w-5" />
               </a>
             </div>
           </div>
