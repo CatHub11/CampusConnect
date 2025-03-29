@@ -11,6 +11,7 @@ import {
   chatConversations, type ChatConversation, type InsertChatConversation,
   chatMessages, type ChatMessage, type InsertChatMessage,
   eventReactions, type EventReaction, type InsertEventReaction, type EventReactionCount,
+  userCalendarEvents, type UserCalendarEvent, type InsertUserCalendarEvent,
   type EventWithCategories, type ClubWithCategories
 } from "@shared/schema";
 
@@ -66,6 +67,12 @@ export interface IStorage {
   getEventReactionsByEventId(eventId: number): Promise<EventReaction[]>;
   getEventReactionCounts(eventId: number, userId?: number): Promise<EventReactionCount[]>;
   toggleEventReaction(eventId: number, userId: number, emoji: string): Promise<EventReaction | null>;
+  
+  // User Calendar Events methods
+  addEventToCalendar(calendarEvent: InsertUserCalendarEvent): Promise<UserCalendarEvent>;
+  removeEventFromCalendar(userId: number, eventId: number): Promise<boolean>;
+  getUserCalendarEvents(userId: number): Promise<Event[]>;
+  isEventInUserCalendar(userId: number, eventId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -392,6 +399,52 @@ export class MemStorage implements IStorage {
       // If reaction doesn't exist, create it (toggle on)
       return this.createEventReaction({ eventId, userId, emoji });
     }
+  }
+
+  // User Calendar Event methods
+  private userCalendarEvents: UserCalendarEvent[] = [];
+  
+  async addEventToCalendar(calendarEvent: InsertUserCalendarEvent): Promise<UserCalendarEvent> {
+    const now = new Date();
+    const newCalendarEvent: UserCalendarEvent = {
+      ...calendarEvent,
+      id: this.eventId++,
+      addedAt: now
+    };
+    
+    // Check if the event already exists in the calendar
+    const exists = await this.isEventInUserCalendar(calendarEvent.userId, calendarEvent.eventId);
+    if (!exists) {
+      this.userCalendarEvents.push(newCalendarEvent);
+    }
+    
+    return newCalendarEvent;
+  }
+  
+  async removeEventFromCalendar(userId: number, eventId: number): Promise<boolean> {
+    const initialLength = this.userCalendarEvents.length;
+    this.userCalendarEvents = this.userCalendarEvents.filter(
+      uce => !(uce.userId === userId && uce.eventId === eventId)
+    );
+    return initialLength > this.userCalendarEvents.length;
+  }
+  
+  async getUserCalendarEvents(userId: number): Promise<Event[]> {
+    // Get all event IDs in the user's calendar
+    const eventIds = this.userCalendarEvents
+      .filter(uce => uce.userId === userId)
+      .map(uce => uce.eventId);
+    
+    // Get the full event objects
+    return Array.from(this.events.values())
+      .filter(event => eventIds.includes(event.id))
+      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  }
+  
+  async isEventInUserCalendar(userId: number, eventId: number): Promise<boolean> {
+    return this.userCalendarEvents.some(
+      uce => uce.userId === userId && uce.eventId === eventId
+    );
   }
 }
 

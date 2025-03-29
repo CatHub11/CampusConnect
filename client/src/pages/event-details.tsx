@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { CalendarEventButton } from "@/components/event-calendar";
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -224,9 +225,17 @@ const EventDetails = () => {
               </DialogContent>
             </Dialog>
             
-            <Button variant="outline" className="w-full mb-6">
+            <Button variant="outline" className="w-full mb-4">
               <Share2 className="mr-2 h-4 w-4" /> Share Event
             </Button>
+            
+            {/* Add to Calendar Button */}
+            <div className="mb-6">
+              {/* Import this component only after react-query is set up */}
+              {/* Using a placeholder userId of 1 for demonstration purposes */}
+              {/* In a real app, you would get the userId from authentication context */}
+              <CalendarEventButton eventId={Number(id)} userId={1} />
+            </div>
             
             <div className="border-t pt-4">
               <h3 className="font-medium mb-2">Event Time</h3>

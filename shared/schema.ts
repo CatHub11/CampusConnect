@@ -231,3 +231,21 @@ export type EventReactionCount = {
   count: number;
   userReacted: boolean;
 };
+
+// User Calendar Events schema
+export const userCalendarEvents = pgTable("user_calendar_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  eventId: integer("event_id").notNull().references(() => events.id),
+  addedAt: timestamp("added_at").notNull().defaultNow(),
+  reminderTime: timestamp("reminder_time"),
+  notes: text("notes"),
+});
+
+export const insertUserCalendarEventSchema = createInsertSchema(userCalendarEvents).omit({
+  id: true,
+  addedAt: true,
+});
+
+export type UserCalendarEvent = typeof userCalendarEvents.$inferSelect;
+export type InsertUserCalendarEvent = z.infer<typeof insertUserCalendarEventSchema>;

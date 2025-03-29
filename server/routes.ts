@@ -551,5 +551,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Calendar Events routes
+  app.post("/api/events/:id/calendar", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { userId, notes, reminderTime } = req.body;
+      
+      // Validate input
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+      
+      // Check if event exists
+      const event = await storage.getEvent(Number(id));
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      
+      // Add or update the calendar event
+      const calendarEvent = await storage.addEventToCalendar({
+        userId: Number(userId),
+        eventId: Number(id),
+        notes,
+        reminderTime: reminderTime ? new Date(reminderTime) : undefined
+      });
+      
+      return res.status(201).json(calendarEvent);
+    } catch (error) {
+      console.error("Error adding event to calendar:", error);
+      return res.status(500).json({ error: "Failed to add event to calendar" });
+    }
+  });
+  
+  app.delete("/api/events/:id/calendar", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { userId } = req.body;
+      
+      // Validate input
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+      
+      // Remove from calendar
+      const removed = await storage.removeEventFromCalendar(Number(userId), Number(id));
+      
+      if (removed) {
+        return res.status(200).json({ success: true });
+      } else {
+        return res.status(404).json({ error: "Event not found in user's calendar" });
+      }
+    } catch (error) {
+      console.error("Error removing event from calendar:", error);
+      return res.status(500).json({ error: "Failed to remove event from calendar" });
+    }
+  });
+  
+  app.get("/api/users/:userId/calendar", async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      
+      const calendarEvents = await storage.getUserCalendarEvents(Number(userId));
+      
+      return res.status(200).json(calendarEvents);
+    } catch (error) {
+      console.error("Error fetching user calendar:", error);
+      return res.status(500).json({ error: "Failed to fetch user calendar" });
+    }
+  });
+  
+  app.get("/api/events/:id/calendar/:userId", async (req: Request, res: Response) => {
+    try {
+      const { id, userId } = req.params;
+      
+      const isInCalendar = await storage.isEventInUserCalendar(Number(userId), Number(id));
+      
+      return res.status(200).json({ isInCalendar });
+    } catch (error) {
+      console.error("Error checking calendar status:", error);
+      return res.status(500).json({ error: "Failed to check calendar status" });
+    }
+  });
+
   return httpServer;
 }

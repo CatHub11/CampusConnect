@@ -13,11 +13,13 @@ import {
   Plus, 
   PanelLeft,
   Hash,
-  Settings
+  Settings,
+  CalendarRange
 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { EventCalendar } from "@/components/event-calendar";
 
 interface EventWithCategoryIds extends Event {
   categoryIds?: number[];
@@ -31,7 +33,7 @@ interface ClubWithCategoryIds extends Club {
 const Dashboard = () => {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeView, setActiveView] = useState<'events' | 'clubs'>('events');
+  const [activeView, setActiveView] = useState<'events' | 'clubs' | 'calendar'>('events');
   const [eventsWithCategories, setEventsWithCategories] = useState<EventWithCategoryIds[]>([]);
   const [clubsWithCategories, setClubsWithCategories] = useState<ClubWithCategoryIds[]>([]);
 
@@ -206,9 +208,12 @@ const Dashboard = () => {
         {/* Content Header */}
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold">
-            {selectedCategory 
-              ? `${categories?.find(c => c.id === selectedCategory)?.name} ${activeView === 'events' ? 'Events' : 'Clubs'}`
-              : `All ${activeView === 'events' ? 'Events' : 'Clubs'}`
+            {activeView === 'calendar' 
+              ? 'My Calendar' 
+              : (selectedCategory 
+                ? `${categories?.find(c => c.id === selectedCategory)?.name} ${activeView === 'events' ? 'Events' : 'Clubs'}`
+                : `All ${activeView === 'events' ? 'Events' : 'Clubs'}`
+                )
             }
           </h1>
           <div className="flex space-x-2">
@@ -226,11 +231,26 @@ const Dashboard = () => {
               <Users className="h-4 w-4 mr-2" />
               Clubs
             </Button>
+            <Button 
+              variant={activeView === 'calendar' ? 'default' : 'outline'} 
+              onClick={() => setActiveView('calendar')}
+            >
+              <CalendarRange className="h-4 w-4 mr-2" />
+              My Calendar
+            </Button>
           </div>
         </div>
 
         {/* Dynamic Content */}
-        {activeView === 'events' ? (
+        {activeView === 'calendar' ? (
+          // Calendar View
+          <div className="w-full">
+            {/* Using a placeholder user ID (1) for demonstration purposes */}
+            {/* In a real app, you would get the user ID from the authentication context */}
+            <EventCalendar userId={1} />
+          </div>
+        ) : activeView === 'events' ? (
+          // Events View
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {filteredEvents.length > 0 ? (
               filteredEvents.map((event) => (
@@ -293,6 +313,7 @@ const Dashboard = () => {
             )}
           </div>
         ) : (
+          // Clubs View
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {filteredClubs.length > 0 ? (
               filteredClubs.map((club) => (
