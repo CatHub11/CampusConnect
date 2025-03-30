@@ -376,11 +376,29 @@ export const insertAiSuggestionFeedbackSchema = createInsertSchema(aiSuggestionF
 export type AiSuggestionFeedback = typeof aiSuggestionFeedback.$inferSelect;
 export type InsertAiSuggestionFeedback = z.infer<typeof insertAiSuggestionFeedbackSchema>;
 
+// User Tag Follows schema
+export const userTagFollows = pgTable("user_tag_follows", {
+  userId: integer("user_id").notNull().references(() => users.id),
+  categoryId: integer("category_id").notNull().references(() => categories.id),
+  followedAt: timestamp("followed_at").notNull().defaultNow(),
+  displayOrder: integer("display_order").notNull().default(0),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.categoryId] }),
+}));
+
+export const insertUserTagFollowSchema = createInsertSchema(userTagFollows).omit({
+  followedAt: true,
+});
+
+export type UserTagFollow = typeof userTagFollows.$inferSelect;
+export type InsertUserTagFollow = z.infer<typeof insertUserTagFollowSchema>;
+
 // Extended types with new relations
 export type UserWithProfile = User & {
   profile: UserProfile;
   preferences: UserPreferences;
   achievements: (UserAchievement & { type: AchievementType })[];
+  followedTags?: (UserTagFollow & { category: Category })[];
 };
 
 export type EventWithSuggestionMetadata = Event & {

@@ -27,7 +27,8 @@ import {
   insertAchievementTypeSchema,
   insertUserAchievementSchema,
   insertEventShareSchema,
-  insertAiSuggestionFeedbackSchema
+  insertAiSuggestionFeedbackSchema,
+  insertUserTagFollowSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -1022,6 +1023,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching AI suggestion feedback:", error);
       res.status(500).json({ message: "Error fetching AI suggestion feedback." });
+    }
+  });
+
+  // Tag follows API
+  app.get("/api/users/:userId/tags", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      const followedTags = await storage.getUserFollowedTags(userId);
+      res.json(followedTags);
+    } catch (error) {
+      console.error("Error fetching user followed tags:", error);
+      res.status(500).json({ message: "Error fetching user followed tags." });
+    }
+  });
+  
+  app.post("/api/users/:userId/tags", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      // Validate the category exists
+      const categoryId = Number(req.body.categoryId);
+      if (isNaN(categoryId)) {
+        return res.status(400).json({ message: "Invalid category ID." });
+      }
+      
+      const category = await storage.getCategory(categoryId);
+      if (!category) {
+        return res.status(404).json({ message: "Category not found." });
+      }
+      
+      // Get display order from request body or default to 0
+      const displayOrder = req.body.displayOrder !== undefined ? Number(req.body.displayOrder) : 0;
+      
+      // Create the user tag follow
+      const tagFollow = insertUserTagFollowSchema.parse({
+        userId,
+        categoryId,
+        displayOrder
+      });
+      
+      const result = await storage.followTag(tagFollow);
+      res.status(201).json(result);
+    } catch (error) {
+      handleZodError(error, res);
+    }
+  });
+  
+  app.delete("/api/users/:userId/tags/:categoryId", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const categoryId = Number(req.params.categoryId);
+      
+      if (isNaN(userId) || isNaN(categoryId)) {
+        return res.status(400).json({ message: "Invalid user ID or category ID." });
+      }
+      
+      const result = await storage.unfollowTag(userId, categoryId);
+      if (!result) {
+        return res.status(404).json({ message: "Tag follow not found." });
+      }
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Error unfollowing tag:", error);
+      res.status(500).json({ message: "Error unfollowing tag." });
+    }
+  });
+  
+  app.patch("/api/users/:userId/tags/:categoryId/order", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const categoryId = Number(req.params.categoryId);
+      
+      if (isNaN(userId) || isNaN(categoryId)) {
+        return res.status(400).json({ message: "Invalid user ID or category ID." });
+      }
+      
+      // Validate display order
+      if (req.body.displayOrder === undefined || isNaN(Number(req.body.displayOrder))) {
+        return res.status(400).json({ message: "Valid display order is required." });
+      }
+      
+      const displayOrder = Number(req.body.displayOrder);
+      
+      const result = await storage.updateTagDisplayOrder(userId, categoryId, displayOrder);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error updating tag display order:", error);
+      res.status(500).json({ message: "Error updating tag display order." });
+    }
+  });
+  
+  app.get("/api/users/:userId/tags/:categoryId", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const categoryId = Number(req.params.categoryId);
+      
+      if (isNaN(userId) || isNaN(categoryId)) {
+        return res.status(400).json({ message: "Invalid user ID or category ID." });
+      }
+      
+      const isFollowed = await storage.isTagFollowed(userId, categoryId);
+      res.status(200).json({ isFollowed });
+    } catch (error) {
+      console.error("Error checking if tag is followed:", error);
+      res.status(500).json({ message: "Error checking if tag is followed." });
     }
   });
 

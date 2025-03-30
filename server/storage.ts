@@ -18,6 +18,7 @@ import {
   userAchievements, type UserAchievement, type InsertUserAchievement,
   eventShares, type EventShare, type InsertEventShare,
   aiSuggestionFeedback, type AiSuggestionFeedback, type InsertAiSuggestionFeedback,
+  userTagFollows, type UserTagFollow, type InsertUserTagFollow,
   type EventWithCategories, type ClubWithCategories, type UserWithProfile, type EventWithSuggestionMetadata
 } from "@shared/schema";
 
@@ -106,6 +107,13 @@ export interface IStorage {
   getRecommendedEventsForUser(userId: number, limit?: number): Promise<EventWithSuggestionMetadata[]>;
   createAiSuggestionFeedback(feedback: InsertAiSuggestionFeedback): Promise<AiSuggestionFeedback>;
   getAiSuggestionFeedbackByUser(userId: number): Promise<AiSuggestionFeedback[]>;
+  
+  // Tag follows methods
+  followTag(follow: InsertUserTagFollow): Promise<UserTagFollow>;
+  unfollowTag(userId: number, categoryId: number): Promise<boolean>;
+  getUserFollowedTags(userId: number): Promise<(UserTagFollow & { category: Category })[]>;
+  updateTagDisplayOrder(userId: number, categoryId: number, displayOrder: number): Promise<UserTagFollow>;
+  isTagFollowed(userId: number, categoryId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -128,6 +136,7 @@ export class MemStorage implements IStorage {
   private userAchievements: UserAchievement[];
   private eventShares: EventShare[];
   private aiSuggestionFeedback: AiSuggestionFeedback[];
+  private userTagFollows: UserTagFollow[];
   
   private userId: number;
   private categoryId: number;
@@ -143,6 +152,7 @@ export class MemStorage implements IStorage {
   private achievementId: number;
   private shareId: number;
   private feedbackId: number;
+  private followId: number;
 
   constructor() {
     this.users = new Map();
@@ -164,6 +174,7 @@ export class MemStorage implements IStorage {
     this.userAchievements = [];
     this.eventShares = [];
     this.aiSuggestionFeedback = [];
+    this.userTagFollows = [];
     
     this.userId = 1;
     this.categoryId = 1;
@@ -179,6 +190,7 @@ export class MemStorage implements IStorage {
     this.achievementId = 1;
     this.shareId = 1;
     this.feedbackId = 1;
+    this.followId = 1;
     
     // Initialize default categories
     const defaultCategories: InsertCategory[] = [
@@ -613,11 +625,15 @@ export class MemStorage implements IStorage {
         achievement !== undefined
       );
     
+    // Get followed tags
+    const followedTags = await this.getUserFollowedTags(userId);
+    
     return {
       ...user,
       profile,
       preferences,
-      achievements
+      achievements,
+      followedTags
     };
   }
   
@@ -806,6 +822,78 @@ export class MemStorage implements IStorage {
   
   async getAiSuggestionFeedbackByUser(userId: number): Promise<AiSuggestionFeedback[]> {
     return this.aiSuggestionFeedback.filter(feedback => feedback.userId === userId);
+  }
+  
+  // Tag follows methods
+  async followTag(follow: InsertUserTagFollow): Promise<UserTagFollow> {
+    // Check if the tag is already followed
+    const existingFollow = this.userTagFollows.find(
+      f => f.userId === follow.userId && f.categoryId === follow.categoryId
+    );
+    
+    if (existingFollow) {
+      // If already followed, just update the display order if it's different
+      if (existingFollow.displayOrder !== follow.displayOrder && follow.displayOrder !== undefined) {
+        return this.updateTagDisplayOrder(follow.userId, follow.categoryId, follow.displayOrder);
+      }
+      return existingFollow;
+    }
+    
+    // Add a new follow
+    const now = new Date();
+    const userTagFollow: UserTagFollow = { 
+      ...follow, 
+      followedAt: now,
+      displayOrder: follow.displayOrder || 0
+    };
+    
+    this.userTagFollows.push(userTagFollow);
+    return userTagFollow;
+  }
+  
+  async unfollowTag(userId: number, categoryId: number): Promise<boolean> {
+    const initialLength = this.userTagFollows.length;
+    this.userTagFollows = this.userTagFollows.filter(
+      f => !(f.userId === userId && f.categoryId === categoryId)
+    );
+    return initialLength > this.userTagFollows.length;
+  }
+  
+  async getUserFollowedTags(userId: number): Promise<(UserTagFollow & { category: Category })[]> {
+    const userFollows = this.userTagFollows.filter(follow => follow.userId === userId);
+    
+    // Sort by display order
+    const sortedFollows = [...userFollows].sort((a, b) => a.displayOrder - b.displayOrder);
+    
+    // Join with categories
+    return sortedFollows
+      .map(follow => {
+        const category = this.categories.get(follow.categoryId);
+        if (!category) return undefined;
+        return { ...follow, category };
+      })
+      .filter((follow): follow is UserTagFollow & { category: Category } => follow !== undefined);
+  }
+  
+  async updateTagDisplayOrder(userId: number, categoryId: number, displayOrder: number): Promise<UserTagFollow> {
+    const follow = this.userTagFollows.find(
+      f => f.userId === userId && f.categoryId === categoryId
+    );
+    
+    if (!follow) {
+      // If not found, create a new follow with the specified display order
+      return this.followTag({ userId, categoryId, displayOrder });
+    }
+    
+    // Update the display order
+    follow.displayOrder = displayOrder;
+    return follow;
+  }
+  
+  async isTagFollowed(userId: number, categoryId: number): Promise<boolean> {
+    return this.userTagFollows.some(
+      f => f.userId === userId && f.categoryId === categoryId
+    );
   }
 }
 
