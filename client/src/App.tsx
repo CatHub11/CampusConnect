@@ -9,6 +9,7 @@ import Clubs from "@/pages/clubs";
 import EventDetails from "@/pages/event-details";
 import ClubDetails from "@/pages/club-details";
 import Dashboard from "@/pages/dashboard";
+import Profile from "@/pages/profile";
 import Header from "./components/header";
 import Footer from "./components/footer";
 import { ThemeProvider } from "./components/theme-provider";
@@ -22,6 +23,8 @@ function Router() {
       <Route path="/clubs" component={Clubs} />
       <Route path="/clubs/:id" component={ClubDetails} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/profile" component={Profile} />
+      <Route path="/profile/:id" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, uniqueIndex, primaryKey, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -249,3 +249,142 @@ export const insertUserCalendarEventSchema = createInsertSchema(userCalendarEven
 
 export type UserCalendarEvent = typeof userCalendarEvents.$inferSelect;
 export type InsertUserCalendarEvent = z.infer<typeof insertUserCalendarEventSchema>;
+
+// User Preferences schema for event recommendations
+export const userPreferences = pgTable("user_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  preferredCategories: integer("preferred_categories").array(),
+  preferredDaysOfWeek: text("preferred_days_of_week").array(),
+  preferredTimeOfDay: text("preferred_time_of_day").array(), // morning, afternoon, evening, night
+  locationPreference: text("location_preference"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
+
+// User Profile schema for personification
+export const userProfiles = pgTable("user_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  bio: text("bio"),
+  profilePicture: text("profile_picture"),
+  socialLinks: json("social_links").$type<{
+    twitter?: string;
+    instagram?: string;
+    facebook?: string;
+    linkedin?: string;
+    website?: string;
+  }>(),
+  interests: text("interests").array(),
+  visibility: text("visibility").notNull().default("public"), // public, friends, private
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
+
+// User Achievements and Badges schema for gamification
+export const achievementTypes = pgTable("achievement_types", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  icon: text("icon").notNull(),
+  points: integer("points").notNull().default(10),
+  category: text("category").notNull(), // event, club, social, etc.
+  requirements: json("requirements").$type<{
+    count?: number;
+    duration?: number;
+    specific_categories?: number[];
+  }>(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAchievementTypeSchema = createInsertSchema(achievementTypes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AchievementType = typeof achievementTypes.$inferSelect;
+export type InsertAchievementType = z.infer<typeof insertAchievementTypeSchema>;
+
+// User earned achievements
+export const userAchievements = pgTable("user_achievements", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  achievementId: integer("achievement_id").notNull().references(() => achievementTypes.id),
+  earnedAt: timestamp("earned_at").notNull().defaultNow(),
+  progress: integer("progress").notNull().default(100), // percentage of completion 0-100
+  displayed: boolean("displayed").notNull().default(true), // Whether to display on profile
+});
+
+export const insertUserAchievementSchema = createInsertSchema(userAchievements).omit({
+  id: true,
+  earnedAt: true,
+});
+
+export type UserAchievement = typeof userAchievements.$inferSelect;
+export type InsertUserAchievement = z.infer<typeof insertUserAchievementSchema>;
+
+// Event Sharing schema for social integration
+export const eventShares = pgTable("event_shares", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  eventId: integer("event_id").notNull().references(() => events.id),
+  platform: text("platform").notNull(), // twitter, facebook, etc.
+  sharedContent: text("shared_content").notNull(),
+  sharingUrl: text("sharing_url"),
+  sharedAt: timestamp("shared_at").notNull().defaultNow(),
+});
+
+export const insertEventShareSchema = createInsertSchema(eventShares).omit({
+  id: true,
+  sharedAt: true,
+});
+
+export type EventShare = typeof eventShares.$inferSelect;
+export type InsertEventShare = z.infer<typeof insertEventShareSchema>;
+
+// AI Suggestion Feedback schema for dynamic learning
+export const aiSuggestionFeedback = pgTable("ai_suggestion_feedback", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  eventId: integer("event_id").references(() => events.id),
+  clubId: integer("club_id").references(() => clubs.id),
+  suggestionType: text("suggestion_type").notNull(), // event, category, club, etc.
+  isRelevant: boolean("is_relevant"),
+  feedbackText: text("feedback_text"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAiSuggestionFeedbackSchema = createInsertSchema(aiSuggestionFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AiSuggestionFeedback = typeof aiSuggestionFeedback.$inferSelect;
+export type InsertAiSuggestionFeedback = z.infer<typeof insertAiSuggestionFeedbackSchema>;
+
+// Extended types with new relations
+export type UserWithProfile = User & {
+  profile: UserProfile;
+  preferences: UserPreferences;
+  achievements: (UserAchievement & { type: AchievementType })[];
+};
+
+export type EventWithSuggestionMetadata = Event & {
+  relevanceScore: number;
+  matchedPreferences: string[];
+  suggestedReason: string;
+};

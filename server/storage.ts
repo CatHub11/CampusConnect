@@ -12,7 +12,13 @@ import {
   chatMessages, type ChatMessage, type InsertChatMessage,
   eventReactions, type EventReaction, type InsertEventReaction, type EventReactionCount,
   userCalendarEvents, type UserCalendarEvent, type InsertUserCalendarEvent,
-  type EventWithCategories, type ClubWithCategories
+  userPreferences, type UserPreferences, type InsertUserPreferences,
+  userProfiles, type UserProfile, type InsertUserProfile,
+  achievementTypes, type AchievementType, type InsertAchievementType,
+  userAchievements, type UserAchievement, type InsertUserAchievement,
+  eventShares, type EventShare, type InsertEventShare,
+  aiSuggestionFeedback, type AiSuggestionFeedback, type InsertAiSuggestionFeedback,
+  type EventWithCategories, type ClubWithCategories, type UserWithProfile, type EventWithSuggestionMetadata
 } from "@shared/schema";
 
 export interface IStorage {
@@ -73,6 +79,33 @@ export interface IStorage {
   removeEventFromCalendar(userId: number, eventId: number): Promise<boolean>;
   getUserCalendarEvents(userId: number): Promise<Event[]>;
   isEventInUserCalendar(userId: number, eventId: number): Promise<boolean>;
+  
+  // User preferences and profiles methods
+  getUserPreferences(userId: number): Promise<UserPreferences | undefined>;
+  createUserPreferences(preferences: InsertUserPreferences): Promise<UserPreferences>;
+  updateUserPreferences(userId: number, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+  getUserProfile(userId: number): Promise<UserProfile | undefined>;
+  createUserProfile(profile: InsertUserProfile): Promise<UserProfile>;
+  updateUserProfile(userId: number, profile: Partial<InsertUserProfile>): Promise<UserProfile>;
+  getUserWithProfile(userId: number): Promise<UserWithProfile | undefined>;
+  
+  // Achievement and badges methods
+  getAllAchievementTypes(): Promise<AchievementType[]>;
+  getAchievementType(id: number): Promise<AchievementType | undefined>;
+  createAchievementType(achievementType: InsertAchievementType): Promise<AchievementType>;
+  getUserAchievements(userId: number): Promise<(UserAchievement & { type: AchievementType })[]>;
+  createUserAchievement(achievement: InsertUserAchievement): Promise<UserAchievement>;
+  updateUserAchievementProgress(userId: number, achievementId: number, progress: number): Promise<UserAchievement>;
+  
+  // Social sharing methods
+  createEventShare(share: InsertEventShare): Promise<EventShare>;
+  getEventSharesByEventId(eventId: number): Promise<EventShare[]>;
+  getEventSharesByUserId(userId: number): Promise<EventShare[]>;
+  
+  // Recommendation engine methods
+  getRecommendedEventsForUser(userId: number, limit?: number): Promise<EventWithSuggestionMetadata[]>;
+  createAiSuggestionFeedback(feedback: InsertAiSuggestionFeedback): Promise<AiSuggestionFeedback>;
+  getAiSuggestionFeedbackByUser(userId: number): Promise<AiSuggestionFeedback[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -88,6 +121,13 @@ export class MemStorage implements IStorage {
   private chatConversations: Map<number, ChatConversation>;
   private chatMessages: Map<number, ChatMessage>;
   private eventReactions: EventReaction[];
+  private userCalendarEvents: UserCalendarEvent[] = [];
+  private userPreferences: Map<number, UserPreferences>;
+  private userProfiles: Map<number, UserProfile>;
+  private achievementTypes: Map<number, AchievementType>;
+  private userAchievements: UserAchievement[];
+  private eventShares: EventShare[];
+  private aiSuggestionFeedback: AiSuggestionFeedback[];
   
   private userId: number;
   private categoryId: number;
@@ -97,6 +137,12 @@ export class MemStorage implements IStorage {
   private conversationId: number;
   private messageId: number;
   private reactionId: number;
+  private preferenceId: number;
+  private profileId: number;
+  private achievementTypeId: number;
+  private achievementId: number;
+  private shareId: number;
+  private feedbackId: number;
 
   constructor() {
     this.users = new Map();
@@ -111,6 +157,13 @@ export class MemStorage implements IStorage {
     this.chatConversations = new Map();
     this.chatMessages = new Map();
     this.eventReactions = [];
+    this.userCalendarEvents = [];
+    this.userPreferences = new Map();
+    this.userProfiles = new Map();
+    this.achievementTypes = new Map();
+    this.userAchievements = [];
+    this.eventShares = [];
+    this.aiSuggestionFeedback = [];
     
     this.userId = 1;
     this.categoryId = 1;
@@ -120,6 +173,12 @@ export class MemStorage implements IStorage {
     this.conversationId = 1;
     this.messageId = 1;
     this.reactionId = 1;
+    this.preferenceId = 1;
+    this.profileId = 1;
+    this.achievementTypeId = 1;
+    this.achievementId = 1;
+    this.shareId = 1;
+    this.feedbackId = 1;
     
     // Initialize default categories
     const defaultCategories: InsertCategory[] = [
@@ -402,8 +461,6 @@ export class MemStorage implements IStorage {
   }
 
   // User Calendar Event methods
-  private userCalendarEvents: UserCalendarEvent[] = [];
-  
   async addEventToCalendar(calendarEvent: InsertUserCalendarEvent): Promise<UserCalendarEvent> {
     const now = new Date();
     const newCalendarEvent: UserCalendarEvent = {
@@ -445,6 +502,310 @@ export class MemStorage implements IStorage {
     return this.userCalendarEvents.some(
       uce => uce.userId === userId && uce.eventId === eventId
     );
+  }
+  
+  // User Preferences methods
+  async getUserPreferences(userId: number): Promise<UserPreferences | undefined> {
+    return this.userPreferences.get(userId);
+  }
+  
+  async createUserPreferences(preferences: InsertUserPreferences): Promise<UserPreferences> {
+    const id = this.preferenceId++;
+    const now = new Date();
+    const userPreference: UserPreferences = { ...preferences, id, updatedAt: now };
+    this.userPreferences.set(preferences.userId, userPreference);
+    return userPreference;
+  }
+  
+  async updateUserPreferences(userId: number, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    const existingPreferences = this.userPreferences.get(userId);
+    const now = new Date();
+    
+    if (existingPreferences) {
+      // Update existing preferences
+      const updatedPreferences: UserPreferences = { 
+        ...existingPreferences, 
+        ...preferences, 
+        updatedAt: now 
+      };
+      this.userPreferences.set(userId, updatedPreferences);
+      return updatedPreferences;
+    } else {
+      // Create new preferences if they don't exist
+      return this.createUserPreferences({ 
+        userId, 
+        preferredCategories: preferences.preferredCategories || [],
+        preferredDaysOfWeek: preferences.preferredDaysOfWeek || [],
+        preferredTimeOfDay: preferences.preferredTimeOfDay || [],
+        locationPreference: preferences.locationPreference || "",
+      });
+    }
+  }
+  
+  // User Profile methods
+  async getUserProfile(userId: number): Promise<UserProfile | undefined> {
+    return this.userProfiles.get(userId);
+  }
+  
+  async createUserProfile(profile: InsertUserProfile): Promise<UserProfile> {
+    const id = this.profileId++;
+    const now = new Date();
+    const userProfile: UserProfile = { ...profile, id, updatedAt: now };
+    this.userProfiles.set(profile.userId, userProfile);
+    return userProfile;
+  }
+  
+  async updateUserProfile(userId: number, profile: Partial<InsertUserProfile>): Promise<UserProfile> {
+    const existingProfile = this.userProfiles.get(userId);
+    const now = new Date();
+    
+    if (existingProfile) {
+      // Update existing profile
+      const updatedProfile: UserProfile = { 
+        ...existingProfile, 
+        ...profile, 
+        updatedAt: now 
+      };
+      this.userProfiles.set(userId, updatedProfile);
+      return updatedProfile;
+    } else {
+      // Create new profile if it doesn't exist
+      return this.createUserProfile({ 
+        userId, 
+        bio: profile.bio || "",
+        profilePicture: profile.profilePicture || "",
+        socialLinks: profile.socialLinks || {},
+        interests: profile.interests || [],
+        visibility: profile.visibility || "public"
+      });
+    }
+  }
+  
+  async getUserWithProfile(userId: number): Promise<UserWithProfile | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    
+    const profile = this.userProfiles.get(userId) || await this.createUserProfile({
+      userId,
+      bio: "",
+      profilePicture: "",
+      socialLinks: {},
+      interests: [],
+      visibility: "public"
+    });
+    
+    const preferences = this.userPreferences.get(userId) || await this.createUserPreferences({
+      userId,
+      preferredCategories: [],
+      preferredDaysOfWeek: [],
+      preferredTimeOfDay: [],
+      locationPreference: ""
+    });
+    
+    const achievements = this.userAchievements
+      .filter(achievement => achievement.userId === userId)
+      .map(achievement => {
+        const achievementType = this.achievementTypes.get(achievement.achievementId);
+        if (!achievementType) return undefined;
+        return { ...achievement, type: achievementType };
+      })
+      .filter((achievement): achievement is UserAchievement & { type: AchievementType } => 
+        achievement !== undefined
+      );
+    
+    return {
+      ...user,
+      profile,
+      preferences,
+      achievements
+    };
+  }
+  
+  // Achievement and Badges methods
+  async getAllAchievementTypes(): Promise<AchievementType[]> {
+    return Array.from(this.achievementTypes.values());
+  }
+  
+  async getAchievementType(id: number): Promise<AchievementType | undefined> {
+    return this.achievementTypes.get(id);
+  }
+  
+  async createAchievementType(achievementType: InsertAchievementType): Promise<AchievementType> {
+    const id = this.achievementTypeId++;
+    const now = new Date();
+    const newAchievementType: AchievementType = { ...achievementType, id, createdAt: now };
+    this.achievementTypes.set(id, newAchievementType);
+    return newAchievementType;
+  }
+  
+  async getUserAchievements(userId: number): Promise<(UserAchievement & { type: AchievementType })[]> {
+    const userAchievements = this.userAchievements.filter(achievement => achievement.userId === userId);
+    
+    return userAchievements
+      .map(achievement => {
+        const achievementType = this.achievementTypes.get(achievement.achievementId);
+        if (!achievementType) return undefined;
+        return { ...achievement, type: achievementType };
+      })
+      .filter((achievement): achievement is UserAchievement & { type: AchievementType } => 
+        achievement !== undefined
+      );
+  }
+  
+  async createUserAchievement(achievement: InsertUserAchievement): Promise<UserAchievement> {
+    const id = this.achievementId++;
+    const now = new Date();
+    const userAchievement: UserAchievement = { ...achievement, id, earnedAt: now };
+    
+    // Check if the user already has this achievement
+    const existingAchievement = this.userAchievements.find(
+      a => a.userId === achievement.userId && a.achievementId === achievement.achievementId
+    );
+    
+    if (!existingAchievement) {
+      this.userAchievements.push(userAchievement);
+    }
+    
+    return userAchievement;
+  }
+  
+  async updateUserAchievementProgress(userId: number, achievementId: number, progress: number): Promise<UserAchievement> {
+    const existingAchievement = this.userAchievements.find(
+      a => a.userId === userId && a.achievementId === achievementId
+    );
+    
+    if (existingAchievement) {
+      // Update existing achievement
+      existingAchievement.progress = Math.min(100, Math.max(0, progress));
+      return existingAchievement;
+    } else {
+      // Create new achievement
+      return this.createUserAchievement({
+        userId,
+        achievementId,
+        progress: Math.min(100, Math.max(0, progress)),
+        displayed: true
+      });
+    }
+  }
+  
+  // Social Sharing methods
+  async createEventShare(share: InsertEventShare): Promise<EventShare> {
+    const id = this.shareId++;
+    const now = new Date();
+    const eventShare: EventShare = { ...share, id, sharedAt: now };
+    this.eventShares.push(eventShare);
+    return eventShare;
+  }
+  
+  async getEventSharesByEventId(eventId: number): Promise<EventShare[]> {
+    return this.eventShares.filter(share => share.eventId === eventId);
+  }
+  
+  async getEventSharesByUserId(userId: number): Promise<EventShare[]> {
+    return this.eventShares.filter(share => share.userId === userId);
+  }
+  
+  // AI Recommendation methods
+  async getRecommendedEventsForUser(userId: number, limit: number = 5): Promise<EventWithSuggestionMetadata[]> {
+    const userPreferences = await this.getUserPreferences(userId);
+    const allEvents = await this.getAllEvents();
+    
+    // If no preferences are set, return featured events
+    if (!userPreferences || !userPreferences.preferredCategories || userPreferences.preferredCategories.length === 0) {
+      const featuredEvents = await this.getFeaturedEvents(limit);
+      return featuredEvents.map(event => ({
+        ...event,
+        relevanceScore: 0.5,
+        matchedPreferences: ["featured"],
+        suggestedReason: "This is a featured event that might interest you."
+      }));
+    }
+    
+    // Score events based on user preferences
+    const scoredEvents = await Promise.all(allEvents.map(async (event) => {
+      let score = 0;
+      const matchedPreferences: string[] = [];
+      
+      // Check category match
+      const eventWithCats = await this.getEventWithCategories(event.id);
+      if (eventWithCats) {
+        const categoryMatches = eventWithCats.categories.filter(
+          cat => userPreferences.preferredCategories.includes(cat.id)
+        );
+        
+        if (categoryMatches.length > 0) {
+          score += 0.4 * (categoryMatches.length / eventWithCats.categories.length);
+          matchedPreferences.push("categories");
+        }
+      }
+      
+      // Check day of week match
+      if (userPreferences.preferredDaysOfWeek && userPreferences.preferredDaysOfWeek.length > 0) {
+        const eventDay = new Date(event.startTime).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        if (userPreferences.preferredDaysOfWeek.some(day => day.toLowerCase() === eventDay)) {
+          score += 0.2;
+          matchedPreferences.push("day of week");
+        }
+      }
+      
+      // Check time of day match
+      if (userPreferences.preferredTimeOfDay && userPreferences.preferredTimeOfDay.length > 0) {
+        const hour = new Date(event.startTime).getHours();
+        const timeOfDay = 
+          hour < 12 ? "morning" :
+          hour < 17 ? "afternoon" :
+          hour < 20 ? "evening" : "night";
+          
+        if (userPreferences.preferredTimeOfDay.includes(timeOfDay)) {
+          score += 0.2;
+          matchedPreferences.push("time of day");
+        }
+      }
+      
+      // Check location match
+      if (userPreferences.locationPreference && 
+          event.location.toLowerCase().includes(userPreferences.locationPreference.toLowerCase())) {
+        score += 0.2;
+        matchedPreferences.push("location");
+      }
+      
+      // Bonus for featured events
+      if (event.featured) {
+        score += 0.1;
+        matchedPreferences.push("featured");
+      }
+      
+      // Generate reason based on matched preferences
+      let suggestedReason = "This event might interest you";
+      if (matchedPreferences.length > 0) {
+        suggestedReason += " based on your preferences for " + matchedPreferences.join(", ");
+      }
+      
+      return {
+        ...event,
+        relevanceScore: score,
+        matchedPreferences,
+        suggestedReason
+      };
+    }));
+    
+    // Sort by score and return top results
+    return scoredEvents
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, limit);
+  }
+  
+  async createAiSuggestionFeedback(feedback: InsertAiSuggestionFeedback): Promise<AiSuggestionFeedback> {
+    const id = this.feedbackId++;
+    const now = new Date();
+    const aiSuggestion: AiSuggestionFeedback = { ...feedback, id, createdAt: now };
+    this.aiSuggestionFeedback.push(aiSuggestion);
+    return aiSuggestion;
+  }
+  
+  async getAiSuggestionFeedbackByUser(userId: number): Promise<AiSuggestionFeedback[]> {
+    return this.aiSuggestionFeedback.filter(feedback => feedback.userId === userId);
   }
 }
 

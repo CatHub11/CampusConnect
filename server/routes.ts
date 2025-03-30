@@ -21,7 +21,13 @@ import {
   insertClubMemberSchema,
   insertChatConversationSchema,
   insertChatMessageSchema,
-  insertEventReactionSchema
+  insertEventReactionSchema,
+  insertUserPreferencesSchema,
+  insertUserProfileSchema,
+  insertAchievementTypeSchema,
+  insertUserAchievementSchema,
+  insertEventShareSchema,
+  insertAiSuggestionFeedbackSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -692,6 +698,330 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error exporting calendar:", error);
       res.status(500).json({ message: "Error exporting calendar." });
+    }
+  });
+
+  // User Preferences API
+  app.get("/api/users/:userId/preferences", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      const preferences = await storage.getUserPreferences(userId);
+      
+      // If preferences don't exist yet, create default ones
+      if (!preferences) {
+        const defaultPreferences = await storage.createUserPreferences({
+          userId,
+          preferredCategories: [],
+          preferredDaysOfWeek: [],
+          preferredTimeOfDay: [],
+          locationPreference: null
+        });
+        return res.json(defaultPreferences);
+      }
+      
+      return res.json(preferences);
+    } catch (error) {
+      console.error("Error fetching user preferences:", error);
+      res.status(500).json({ message: "Error fetching user preferences." });
+    }
+  });
+  
+  app.post("/api/users/:userId/preferences", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      // First check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found." });
+      }
+      
+      const preferences = insertUserPreferencesSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const existingPreferences = await storage.getUserPreferences(userId);
+      
+      let result;
+      if (existingPreferences) {
+        // Update existing preferences
+        result = await storage.updateUserPreferences(userId, preferences);
+      } else {
+        // Create new preferences
+        result = await storage.createUserPreferences(preferences);
+      }
+      
+      res.status(200).json(result);
+    } catch (error) {
+      handleZodError(error, res);
+    }
+  });
+  
+  // User Profile API
+  app.get("/api/users/:userId/profile", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      const profile = await storage.getUserProfile(userId);
+      
+      // If profile doesn't exist yet, create default one
+      if (!profile) {
+        const defaultProfile = await storage.createUserProfile({
+          userId,
+          bio: "",
+          profilePicture: "",
+          socialLinks: {},
+          interests: [],
+          visibility: "public"
+        });
+        return res.json(defaultProfile);
+      }
+      
+      return res.json(profile);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      res.status(500).json({ message: "Error fetching user profile." });
+    }
+  });
+  
+  app.post("/api/users/:userId/profile", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      // First check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found." });
+      }
+      
+      const profile = insertUserProfileSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const existingProfile = await storage.getUserProfile(userId);
+      
+      let result;
+      if (existingProfile) {
+        // Update existing profile
+        result = await storage.updateUserProfile(userId, profile);
+      } else {
+        // Create new profile
+        result = await storage.createUserProfile(profile);
+      }
+      
+      res.status(200).json(result);
+    } catch (error) {
+      handleZodError(error, res);
+    }
+  });
+  
+  // Complete user data with profile
+  app.get("/api/users/:userId/complete", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      const userWithProfile = await storage.getUserWithProfile(userId);
+      if (!userWithProfile) {
+        return res.status(404).json({ message: "User not found." });
+      }
+      
+      return res.json(userWithProfile);
+    } catch (error) {
+      console.error("Error fetching user with profile:", error);
+      res.status(500).json({ message: "Error fetching user with profile." });
+    }
+  });
+  
+  // Achievements API
+  app.get("/api/achievement-types", async (req: Request, res: Response) => {
+    try {
+      const achievementTypes = await storage.getAllAchievementTypes();
+      res.json(achievementTypes);
+    } catch (error) {
+      console.error("Error fetching achievement types:", error);
+      res.status(500).json({ message: "Error fetching achievement types." });
+    }
+  });
+  
+  app.post("/api/achievement-types", async (req: Request, res: Response) => {
+    try {
+      const achievementType = insertAchievementTypeSchema.parse(req.body);
+      const result = await storage.createAchievementType(achievementType);
+      res.status(201).json(result);
+    } catch (error) {
+      handleZodError(error, res);
+    }
+  });
+  
+  app.get("/api/users/:userId/achievements", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      const achievements = await storage.getUserAchievements(userId);
+      res.json(achievements);
+    } catch (error) {
+      console.error("Error fetching user achievements:", error);
+      res.status(500).json({ message: "Error fetching user achievements." });
+    }
+  });
+  
+  app.post("/api/users/:userId/achievements", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      const achievement = insertUserAchievementSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const result = await storage.createUserAchievement(achievement);
+      res.status(201).json(result);
+    } catch (error) {
+      handleZodError(error, res);
+    }
+  });
+  
+  app.patch("/api/users/:userId/achievements/:achievementId/progress", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const achievementId = Number(req.params.achievementId);
+      
+      if (isNaN(userId) || isNaN(achievementId)) {
+        return res.status(400).json({ message: "Invalid user ID or achievement ID." });
+      }
+      
+      // Validate request body
+      if (typeof req.body.progress !== 'number' || req.body.progress < 0 || req.body.progress > 100) {
+        return res.status(400).json({ message: "Progress must be a number between 0 and 100." });
+      }
+      
+      const result = await storage.updateUserAchievementProgress(userId, achievementId, req.body.progress);
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating achievement progress:", error);
+      res.status(500).json({ message: "Error updating achievement progress." });
+    }
+  });
+  
+  // Social Sharing API
+  app.post("/api/events/:id/share", async (req: Request, res: Response) => {
+    try {
+      const eventId = Number(req.params.id);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID." });
+      }
+      
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found." });
+      }
+      
+      const share = insertEventShareSchema.parse({
+        ...req.body,
+        eventId
+      });
+      
+      const result = await storage.createEventShare(share);
+      res.status(201).json(result);
+    } catch (error) {
+      handleZodError(error, res);
+    }
+  });
+  
+  app.get("/api/events/:id/shares", async (req: Request, res: Response) => {
+    try {
+      const eventId = Number(req.params.id);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID." });
+      }
+      
+      const shares = await storage.getEventSharesByEventId(eventId);
+      res.json(shares);
+    } catch (error) {
+      console.error("Error fetching event shares:", error);
+      res.status(500).json({ message: "Error fetching event shares." });
+    }
+  });
+  
+  app.get("/api/users/:userId/shares", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      const shares = await storage.getEventSharesByUserId(userId);
+      res.json(shares);
+    } catch (error) {
+      console.error("Error fetching user shares:", error);
+      res.status(500).json({ message: "Error fetching user shares." });
+    }
+  });
+  
+  // AI Recommendation API
+  app.get("/api/users/:userId/recommended-events", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      const limit = Number(req.query.limit) || 5;
+      
+      const recommendedEvents = await storage.getRecommendedEventsForUser(userId, limit);
+      res.json(recommendedEvents);
+    } catch (error) {
+      console.error("Error fetching recommended events:", error);
+      res.status(500).json({ message: "Error fetching recommended events." });
+    }
+  });
+  
+  app.post("/api/ai-suggestions/feedback", async (req: Request, res: Response) => {
+    try {
+      const feedback = insertAiSuggestionFeedbackSchema.parse(req.body);
+      const result = await storage.createAiSuggestionFeedback(feedback);
+      res.status(201).json(result);
+    } catch (error) {
+      handleZodError(error, res);
+    }
+  });
+  
+  app.get("/api/users/:userId/ai-suggestions/feedback", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID." });
+      }
+      
+      const feedback = await storage.getAiSuggestionFeedbackByUser(userId);
+      res.json(feedback);
+    } catch (error) {
+      console.error("Error fetching AI suggestion feedback:", error);
+      res.status(500).json({ message: "Error fetching AI suggestion feedback." });
     }
   });
 

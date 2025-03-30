@@ -21,17 +21,22 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({ userId }) => {
   // Fetch user's calendar events
   const { data: calendarEvents, isLoading } = useQuery<Event[]>({
     queryKey: ['/api/users', userId, 'calendar'],
-    queryFn: () => apiRequest(`/api/users/${userId}/calendar`),
+    queryFn: async () => {
+      const res = await apiRequest(`/api/users/${userId}/calendar`);
+      return res.json();
+    },
     enabled: !!userId,
   });
   
   // Add event to calendar
   const addToCalendarMutation = useMutation({
-    mutationFn: ({ eventId }: { eventId: number }) => 
-      apiRequest(`/api/events/${eventId}/calendar`, {
+    mutationFn: async ({ eventId }: { eventId: number }) => {
+      const res = await apiRequest(`/api/events/${eventId}/calendar`, {
         method: 'POST',
         data: { userId }
-      }),
+      });
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users', userId, 'calendar'] });
       toast({
@@ -50,11 +55,13 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({ userId }) => {
   
   // Remove event from calendar
   const removeFromCalendarMutation = useMutation({
-    mutationFn: ({ eventId }: { eventId: number }) => 
-      apiRequest(`/api/events/${eventId}/calendar`, {
+    mutationFn: async ({ eventId }: { eventId: number }) => {
+      const res = await apiRequest(`/api/events/${eventId}/calendar`, {
         method: 'DELETE',
         data: { userId }
-      }),
+      });
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users', userId, 'calendar'] });
       toast({
@@ -152,7 +159,10 @@ export const CalendarEventButton: React.FC<{
   // Check if the event is already in the user's calendar
   const { data, isLoading } = useQuery({
     queryKey: ['/api/events', eventId, 'calendar', userId],
-    queryFn: () => apiRequest(`/api/events/${eventId}/calendar/${userId}`),
+    queryFn: async () => {
+      const res = await apiRequest(`/api/events/${eventId}/calendar/${userId}`);
+      return res.json();
+    },
     enabled: !!userId && !!eventId,
   });
   
@@ -164,11 +174,13 @@ export const CalendarEventButton: React.FC<{
   
   // Add event to calendar
   const addToCalendarMutation = useMutation({
-    mutationFn: () => 
-      apiRequest(`/api/events/${eventId}/calendar`, {
+    mutationFn: async () => {
+      const res = await apiRequest(`/api/events/${eventId}/calendar`, {
         method: 'POST',
         data: { userId }
-      }),
+      });
+      return res.json();
+    },
     onSuccess: () => {
       setIsInCalendar(true);
       queryClient.invalidateQueries({ queryKey: ['/api/users', userId, 'calendar'] });
@@ -189,11 +201,13 @@ export const CalendarEventButton: React.FC<{
   
   // Remove event from calendar
   const removeFromCalendarMutation = useMutation({
-    mutationFn: () => 
-      apiRequest(`/api/events/${eventId}/calendar`, {
+    mutationFn: async () => {
+      const res = await apiRequest(`/api/events/${eventId}/calendar`, {
         method: 'DELETE',
         data: { userId }
-      }),
+      });
+      return res.json();
+    },
     onSuccess: () => {
       setIsInCalendar(false);
       queryClient.invalidateQueries({ queryKey: ['/api/users', userId, 'calendar'] });
