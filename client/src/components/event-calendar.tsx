@@ -110,9 +110,15 @@ export const EventCalendar: React.FC<EventCalendarProps> = ({ userId }) => {
           href={`/api/users/${userId}/calendar/export/ics`} 
           download="my-calendar.ics"
           className="ml-auto"
+          onClick={() => {
+            toast({
+              title: "Calendar Export",
+              description: "Your calendar is being downloaded as an .ics file.",
+            });
+          }}
         >
           <Button variant="outline" size="sm">
-            <CalendarPlus className="mr-2 h-4 w-4" /> Export Calendar
+            <Download className="mr-2 h-4 w-4" /> Export Calendar
           </Button>
         </a>
       </CardHeader>

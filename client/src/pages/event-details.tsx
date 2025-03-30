@@ -243,6 +243,12 @@ const EventDetails = () => {
               href={`/api/events/${id}/export/ics`} 
               download={`event-${event.name}.ics`}
               className="w-full mb-6"
+              onClick={() => {
+                toast({
+                  title: "Calendar Export",
+                  description: "Event is being downloaded as an .ics file.",
+                });
+              }}
             >
               <Button variant="outline" className="w-full">
                 <Download className="mr-2 h-4 w-4" /> Download .ics File
